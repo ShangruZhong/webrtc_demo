@@ -1,44 +1,36 @@
-
-/**
- * Module dependencies.
- */
-
-
 /*
  *  Function: Server Code
  *  Modules API Required: node-static, http, socket.io
  *  Note: all comments are explanation of API
- *  Maintainer: Shangru Zhong 
- *  2014/12/1
+ *  By Shangru @2015/3/22
  */
 
 var express = require('express')
   , routes = require('./routes')
   , user = require('./routes/user')
   , http = require('http')
-  , path = require('path');
+  , path = require('path')
+  , ejs = require('ejs') //new adding
+  , node_static = require('node-static');
 
-var ejs = require('ejs'); //new adding
-var app = express();
-
-var node_static = require('node-static');
 var file = new(node_static.Server)();
-
-var server = http.createServer(app,function(req,res){
+var app = express();
+var server = http.createServer(app, function(req,res){
 	file.serve(req,res);
-}).listen(3000,function(){
-	console.log('Express server listening port: 3000');
-});
+	}).listen(3000,function(){
+		console.log('Express server listening port: 3000');
+		});
 
+var usersId =[]; //stored users'id
 var io = require('socket.io').listen(server);
 
 io.sockets.on('connection', function (socket){ 
 //服务器端的socket侦听"connection"的响应函数
 	function log(){
 		var array = [">>> Message from server: "];
-	  for (var i = 0; i < arguments.length; i++) {
-	  	array.push(arguments[i]);
-	  }
+	  	for (var i = 0; i < arguments.length; i++) {
+	  		array.push(arguments[i]);
+	 	}
 	    socket.emit('log', array);
 	}
 
@@ -48,24 +40,31 @@ io.sockets.on('connection', function (socket){
 		socket.broadcast.emit('message', message);
 	});
 
-	socket.on('create or join', function (room) {//回调
-			var numClients = io.sockets.clients(room).length;
+	socket.on('create or join', function (room) {
+			
+			var numClients = io.sockets.clients(room).length; 
 
-			log('Room ' + room + ' has ' + numClients + ' client(s)');
-			log('Request to create or join room', room);
+			log('Room ' + room + ' has ' + numClients + ' client(s)'); //">>> Message from server: xxx"
+			log('Request to create or join room:', room);
 
 			if (numClients == 0){
 				socket.join(room);
 				socket.emit('created', room); //向client发送建立信号"created"
-			} else if (numClients == 1) {
+				usersId.push(socket.id); //记录连接好的socket id
+			} else if (numClients <= 5) {
 				io.sockets.in(room).emit('join', room);
 				socket.join(room);
 				socket.emit('joined', room); //向client发送"joined"信号
-			} else { // max two clients
+				usersId.push(socket.id); //记录连接好的socket id
+			} else { // max 5 clients
 				socket.emit('full', room); //发送"full"信号
+				return;
 			}
-			socket.emit('emit(): client ' + socket.id + ' joined room ' + room); //向client发送信号
-			socket.broadcast.emit('broadcast(): client ' + socket.id + ' joined room ' + room);//发送广播信号
+
+			io.sockets.emit('system',socket.id,numClients+1); //向所有的socket发送
+
+			//socket.emit('emit(): client ' + socket.id + ' joined room ' + room); //向client发送信号
+			//socket.broadcast.emit('broadcast(): client ' + socket.id + ' joined room ' + room);//发送广播信号
 		});
 });
 

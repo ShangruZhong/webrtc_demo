@@ -25,27 +25,16 @@ var sdpConstraints = {'mandatory': {
 
 /////////////////////////////////////////////
 
-var room = location.pathname.substring(1);
-if (room === '') {
- room = prompt('Enter room name:');
-//  room = 'foo';
-} else {
-  
-}
 
 //定义socket连接服务器socket=io.connect('http://localhost'或者null); 
 //io是server端定义的调用socketio模块建立的对象：
 //即var io=require('socket.io').listen(port);
 //Server: io.sockets.on(action,function(xx){
-//						xx.on('message',function(){}); //server使用message事件接收消息
-//						});
+//            xx.on('message',function(){}); //server使用message事件接收消息
+//            });
 
 var socket = io.connect();
 
-if (room !== '') {
-  console.log('Create or join room', room);
-  socket.emit('create or join', room);
-}
 
 //事件驱动，
 //两端可以互发消息
@@ -70,7 +59,7 @@ socket.on('join', function (room){ //第二个client加入时，socket发给第�
 });
 
 socket.on('joined', function (room){ //第二个client加入，侦听到joined
-  console.log('This peer has joined room ' + room);
+  console.log('Successfully!: This peer has joined room ' + room);
   isChannelReady = true;
 });
 
@@ -78,10 +67,15 @@ socket.on('log', function (array){
   console.log.apply(console, array);
 });
 
+socket.on('system',function (id, count){
+  console.log("Server >> client: "+id+" has joined room");
+  console.log("Server >> 当前在线数为："+count);
+  document.getElementById('status').textContent = "当前房间有"+ count + "人在线"-;
+});
 ////////////////////////////////////////////////
 //本地emit "message事件"
 function sendMessage(message){
-	console.log('Client sending message: ', message);
+  console.log('Client sending message: ', message);
     socket.emit('message', message); 
   }
 
@@ -89,31 +83,62 @@ function sendMessage(message){
 socket.on('message', function (message){
   console.log('Client received message:', message);
   if (message === 'got user media') {
-	maybeStart();
+  maybeStart();
   } else if (message.type === 'offer') { //收到的是offer连接
-			if (!isInitiator && !isStarted) { //isInitiator/isStarted=0还没初始化
-			  maybeStart(); //Start!
-			}
-			pc.setRemoteDescription(new RTCSessionDescription(message));//新建"远程会话描述"
-			doAnswer();  //发送应答
-		} else if (message.type === 'answer' && isStarted) { //收到的是应答answer
-					pc.setRemoteDescription(new RTCSessionDescription(message));//同样新建"远程会话描述"
-				} else if (message.type === 'candidate' && isStarted) { //收到的是"candidate"类型
-							var candidate = new RTCIceCandidate({
-							sdpMLineIndex: message.label,
-							candidate: message.candidate
-							}); //新建IceCandidate对象candidate
-							pc.addIceCandidate(candidate); //pc添加Ice的candidate,参数是RTCIceCandidate对象
-						} else if (message === 'bye' && isStarted) { //收到的是"bye"
-								handleRemoteHangup(); //处理远程挂断
-							}
+      if (!isInitiator && !isStarted) { //isInitiator/isStarted=0还没初始化
+        maybeStart(); //Start!
+      }
+      pc.setRemoteDescription(new RTCSessionDescription(message));//新建"远程会话描述"
+      doAnswer();  //发送应答
+    } else if (message.type === 'answer' && isStarted) { //收到的是应答answer
+          pc.setRemoteDescription(new RTCSessionDescription(message));//同样新建"远程会话描述"
+        } else if (message.type === 'candidate' && isStarted) { //收到的是"candidate"类型
+              var candidate = new RTCIceCandidate({
+              sdpMLineIndex: message.label,
+              candidate: message.candidate
+              }); //新建IceCandidate对象candidate
+              pc.addIceCandidate(candidate); //pc添加Ice的candidate,参数是RTCIceCandidate对象
+            } else if (message === 'bye' && isStarted) { //收到的是"bye"
+                handleRemoteHangup(); //处理远程挂断
+              }
 });
 
-////////////////////////////////////////////////////
+/*
+ * Main 入口
+ */
+var startBtn = document.getElementById('startBtn');
 
-var localVideo = document.querySelector('#localVideo'); //查找选择器获取本地视频对象的引用
-var remoteVideo = document.querySelector('#remoteVideo');//查找选择器获取远程视频对象的引用
+startBtn.onclick = function(event){
+    var room = location.pathname.substring(1);
+    if (room === '') {
+     room = prompt('Enter room name:');
+    //  room = 'foo';
+    } else {  
+    }
 
+    if (room !== '') {
+      console.log('Create or join room', room);
+      socket.emit('create or join', room); //发送room号给server
+    }
+
+    //var localVideo = document.querySelector('#localVideo'); //查找选择器获取本地视频对象的引用
+    var localVideo = document.getElementById('localVideo');
+    //var remoteVideo = document.querySelector('#remoteVideo');//查找选择器获取远程视频对象的引用
+    var remoteVideo = document.getElementById('remoteVideo');
+
+    var constraints = {video: true,audio:true}; //定义约束video:true,audio:true
+    getUserMedia(constraints, handleUserMedia, handleUserMediaError); 
+    //HTML5函数获取视频，参数 1约束，参数2获取成功的回调函数，参数3获取失败的回调函数
+    console.log('Getting user media with constraints', constraints);
+
+    if (location.hostname != "127.0.0.1") {
+      requestTurn('https://computeengineondemand.appspot.com/turn?username=41784574&key=4080218913');
+    }
+
+}
+
+
+/*************************************************************************/
 function handleUserMedia(stream) { //处理用户本地视频流
   console.log('Adding local stream.');
   localVideo.src = window.URL.createObjectURL(stream); //流变量->localVideo对象
@@ -128,20 +153,13 @@ function handleUserMediaError(error){ //处理用户媒体的错误
   console.log('getUserMedia error: ', error);
 }
 
-var constraints = {video: true,audio:true}; //定义约束video:true,audio:true
-getUserMedia(constraints, handleUserMedia, handleUserMediaError); 
-//HTML5函数获取视频，参数 1约束，参数2获取成功的回调函数，参数3获取失败的回调函数
 
-console.log('Getting user media with constraints', constraints);
 
-if (location.hostname != "127.0.0.1") {
-  requestTurn('https://computeengineondemand.appspot.com/turn?username=41784574&key=4080218913');
-}
 
 function maybeStart() { //开始函数 isInitiator=1
   if (!isStarted && typeof localStream != 'undefined' && isChannelReady) {
     createPeerConnection(); //建立Peer连接，调用RTCPeerConnection
-	
+  
     pc.addStream(localStream); //添加本地视频流
     isStarted = true;  //开始标志isStarted置1
     console.log('isInitiator', isInitiator);
@@ -152,7 +170,7 @@ function maybeStart() { //开始函数 isInitiator=1
 }
 
 window.onbeforeunload = function(e){
-	sendMessage('bye'); 
+  sendMessage('bye'); 
 }
 
 ///////////////////createPeerConnection//////////////////////
@@ -160,7 +178,7 @@ window.onbeforeunload = function(e){
 function createPeerConnection() {
   try {
     pc = new RTCPeerConnection(null); //调用RTCPeerConnection建立新对象pc
-	//pc.onXXX: Event handlers!!!
+  //pc.onXXX: Event handlers!!!
     pc.onicecandidate = handleIceCandidate; //当收到icecandidate事件，响应onicecandiate
     pc.onaddstream = handleRemoteStreamAdded;//当收到addstream事件，响应
     pc.onremovestream = handleRemoteStreamRemoved;//当收到removestream事件，响应
@@ -236,7 +254,7 @@ function requestTurn(turn_url) { //请求TURN服务器
     xhr.onreadystatechange = function(){
       if (xhr.readyState === 4 && xhr.status === 200) { //readyState=4 请求完成 status为响应码200表示成功响应
         var turnServer = JSON.parse(xhr.responseText);
-      	console.log('Got TURN server: ', turnServer);
+        console.log('Got TURN server: ', turnServer);
         pc_config.iceServers.push({
           'url': 'turn:' + turnServer.username + '@' + turnServer.turn,
           'credential': turnServer.password

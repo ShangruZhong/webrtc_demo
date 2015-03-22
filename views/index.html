@@ -13,14 +13,21 @@
     <p>Welcome to <%= title %></p>
 
 	<div id='container'>
+		<span id='status'></span>
+		<br/>
+		<button id='startBtn'>开始视频</button>
 	  <div id='videos'>
+	  	<p>Local Video</p>
 	    <video id='localVideo' autoplay muted></video>
+	    <p>Remote Video</p>
 	    <video id='remoteVideo' autoplay></video>
 	  </div>
+
 	</div>
+
 	<script src='/socket.io/socket.io.js'></script>
 	<script src='javascripts/adapter.js'></script>
-	<script src='javascripts/main.js'></script>  
+	<script src='javascripts/client.js'></script>  
 
   </body>
 </html>
