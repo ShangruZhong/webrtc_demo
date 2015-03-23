@@ -42,30 +42,33 @@ io.sockets.on('connection', function (socket){
 
 	socket.on('create or join', function (room) {
 			
-			var numClients = io.sockets.clients(room).length; 
+		var numClients = io.sockets.clients(room).length; 
 
-			log('Room ' + room + ' has ' + numClients + ' client(s)'); //">>> Message from server: xxx"
-			log('Request to create or join room:', room);
+		log('Room ' + room + ' has ' + numClients + ' client(s)'); //">>> Message from server: xxx"
+		log('Now equest to create or join room:', room);
 
-			if (numClients == 0){
-				socket.join(room);
-				socket.emit('created', room); //向client发送建立信号"created"
-				usersId.push(socket.id); //记录连接好的socket id
-			} else if (numClients <= 5) {
-				io.sockets.in(room).emit('join', room);
-				socket.join(room);
-				socket.emit('joined', room); //向client发送"joined"信号
-				usersId.push(socket.id); //记录连接好的socket id
-			} else { // max 5 clients
-				socket.emit('full', room); //发送"full"信号
-				return;
-			}
-
-			io.sockets.emit('system',socket.id,numClients+1); //向所有的socket发送
-
-			//socket.emit('emit(): client ' + socket.id + ' joined room ' + room); //向client发送信号
-			//socket.broadcast.emit('broadcast(): client ' + socket.id + ' joined room ' + room);//发送广播信号
+		if (numClients == 0){
+			socket.join(room);
+			socket.emit('created', room, socket.id); //向client发送建立信号"created"
+			usersId.push(socket.id); //记录连接好的socket id
+		} else if (numClients <= 5) {
+			io.sockets.in(room).emit('join', room);
+			socket.join(room);
+			socket.emit('joined', room); //向client发送"joined"信号
+			usersId.push(socket.id); //记录连接好的socket id
+			io.sockets.emit('system', socket.id, numClients,'login'); //向所有的socket发送
+		} else { // max 5 clients
+			socket.emit('full', room); //发送"full"信号
+			return;
+		}
+		console.log("当前在线的用户有："+usersId);
 		});
+
+	socket.on('disconnect',function (room){
+		usersId.splice(socket.id,1);
+		var numClients = io.sockets.clients(room).length; //var numClients=usersId.length
+		socket.broadcast.emit('system',socket.id,numClients,'logout');
+	})
 });
 
 //express基本配置
