@@ -2,7 +2,7 @@
  *  Function: Server Code
  *  Modules API Required: node-static, http, socket.io
  *  Note: all comments are explanation of API
- *  By Shangru @2015/3/22
+ *  By Shangru @2015/3/23
  */
 
 var express = require('express')
@@ -38,6 +38,10 @@ io.sockets.on('connection', function (socket){
 		log('Got message: ', message);
     // For a real app, should be room only (not broadcast)
 		socket.broadcast.emit('message', message);
+	});
+
+	socket.on('sendText',function (msg){
+		socket.broadcast.emit('textMsg',msg);
 	});
 
 	socket.on('create or join', function (room) {
