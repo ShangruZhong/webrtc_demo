@@ -2,7 +2,7 @@
  *  Function: Server Code
  *  Modules API Required: node-static, http, socket.io
  *  Note: all comments are explanation of API
- *  By Shangru @2015/3/23
+ *  By Shangru @2015/3/24
  */
 
 var express = require('express')
@@ -34,10 +34,10 @@ io.sockets.on('connection', function (socket){
 	    socket.emit('log', array);
 	}
 
-	socket.on('message', function (message) { //收到connection回调
-		log('Got message: ', message);
+	socket.on('message', function (id, message) { //收到connection回调
+		log('Got message: ', id, message);
     // For a real app, should be room only (not broadcast)
-		socket.broadcast.emit('message', message);
+		socket.broadcast.emit('message', id, message);
 	});
 
 	socket.on('sendText',function (msg){
@@ -55,12 +55,13 @@ io.sockets.on('connection', function (socket){
 			socket.join(room);
 			socket.emit('created', room, socket.id); //向client发送建立信号"created"
 			usersId.push(socket.id); //记录连接好的socket id
+			io.sockets.emit('system', socket.id, usersId,'login'); //向所有的socket发送
 		} else if (numClients <= 5) {
 			io.sockets.in(room).emit('join', room);
 			socket.join(room);
-			socket.emit('joined', room); //向client发送"joined"信号
+			socket.emit('joined', room, socket.id); //向client发送"joined"信号
 			usersId.push(socket.id); //记录连接好的socket id
-			io.sockets.emit('system', socket.id, numClients,'login'); //向所有的socket发送
+			io.sockets.emit('system', socket.id, usersId,'login'); //向所有的socket发送
 		} else { // max 5 clients
 			socket.emit('full', room); //发送"full"信号
 			return;
