@@ -1,6 +1,10 @@
  'use strict';
 
-var isChannelReady;
+var localVideo = document.getElementById('localVideo');
+var videos = document.getElementById('videos');
+
+var isChannelReady; //建立socket时置1
+var isLocalAdded = false; //获取本地视频置1
 var isInitiator = false; //是房间创建者置1
 var isStarted = false; //发起会话呼叫时置1
 var localStream;  //pc.addStream(localStream)
@@ -15,9 +19,8 @@ var localId; //本client的socketId
 var turnReady;
 
 var pc_config = {'iceServers': [{'url': 'stun:stun.l.google.com:19302'}]};
-
 var pc_constraints = {'optional': [{'DtlsSrtpKeyAgreement': true}]};
-
+var constraints = {video: true, audio: true}; //定义约束video:true,audio:true
 // Set up audio and video regardless of what devices are present.
 //JSON表达
 var sdpConstraints = {'mandatory': {
@@ -29,8 +32,8 @@ var sdpConstraints = {'mandatory': {
 //io是server端定义的调用socketio模块建立的对象：
 //即var io=require('socket.io').listen(port);
 //Server: io.sockets.on(action,function(xx){
-//            xx.on('message',function(){}); //server使用message事件接收消息
-//            });
+//						xx.on('message',function(){}); //server使用message事件接收消息
+//						});
 
 var socket = io.connect();
 
@@ -40,6 +43,8 @@ socket.on('created', function (room,id){ //本client是创建者，收到'create
   var msg = "本人 "+ localId +" 创建了房间 "+room;
   showMsg(msg);
   isInitiator = true;
+  getUserMedia(constraints, handleUserMedia, handleUserMediaError); 
+  console.log('Getting user media with constraints', constraints);
 });
 
 socket.on('full', function (room){
@@ -56,6 +61,8 @@ socket.on('joined', function (room,id){ //本client成功加入，收到'joined'
   console.log('Successfully!: This peer has joined room ' + room);
   localId = id;
   isChannelReady = true;
+  getUserMedia(constraints, handleUserMedia, handleUserMediaError); 
+  console.log('Getting user media with constraints', constraints);
 });
 
 socket.on('log', function (array){
@@ -77,43 +84,44 @@ socket.on('system',function (id, usersId, status){
 
 //本地emit "message"："string"//JSONstringify(json)
 function sendMessage(message){
-  console.log('Client sending message: ', message);
+	console.log('本客户端发送message: ', message);
     socket.emit('message', localId, message); 
   }
 
 //接受处理server端发送的message事件
 socket.on('message', function (id, message){
-  console.log('This client received id: '+id+' \'s message:'+ message);
-  if (message === 'got user media' && id != localId) {
+  console.log('$~:客户端收到 id: '+id+' 的message:'+ message);
+  if (message === 'got user media' && id != localId) { //收到非本客户端的获取local stream成功
     //maybeStart();
       console.log("$~:向新加入的id-"+id+"-发起offer，建立pc[id]！");
      //加入房间并准备好localstream后，以新加入的id作为连接pc
       AddLocalStream(id); //createPeerConnections(id) 
       doCall(id); //向新加入的id发起offer
-      } else if (message.type === 'offer' && id != localId) { //收到的是offer连接
-      // if(!isInitiator && !isStarted){  //当此client不是房间创建人而且本地连接没开始时
-        //maybeStart(); 
-      // }  
+      } 
+      else if (message.type === 'offer' && id != localId) { //收到的是offer连接
+			// if(!isInitiator && !isStarted){  //当此client不是房间创建人而且本地连接没开始时
+			  //maybeStart(); 
+			// }  
         console.log("$~:id-"+id+"-向我发起offer，建立pc[id]应答！");
         AddLocalStream(id);
         peerConnections[id].setRemoteDescription(new RTCSessionDescription(message));//新建"远程会话描述"
-        doAnswer(id);  //发送应答
+  			doAnswer(id);  //发送应答
 
-      } else if (message.type === 'answer'  && id !=localId ){//&& isStarted) { //收到的是应答answer
-          //pc.setRemoteDescription(new RTCSessionDescription(message));//收到对方的answer后新建"远程会话描述"
-          
+		  } else if (message.type === 'answer'  && id !=localId ){//&& isStarted) { //收到的是应答answer
+					//pc.setRemoteDescription(new RTCSessionDescription(message));//收到对方的answer后新建"远程会话描述"
+				  
           console.log("$~:收到id-"+id+"-的answer！");
           peerConnections[id].setRemoteDescription(new RTCSessionDescription(message));
         } else if (message.type === 'candidate'&&id != localId && isStarted ){ //收到的是"candidate"类型
-              var candidate = new RTCIceCandidate({
-              sdpMLineIndex: message.label,
-              candidate: message.candidate
-              }); //新建IceCandidate对象candidate
-              //pc.addIceCandidate(candidate); //pc添加Ice的candidate,参数是RTCIceCandidate对象
+							var candidate = new RTCIceCandidate({
+							sdpMLineIndex: message.label,
+							candidate: message.candidate
+							}); //新建IceCandidate对象candidate
+							//pc.addIceCandidate(candidate); //pc添加Ice的candidate,参数是RTCIceCandidate对象
               peerConnections[id].addIceCandidate(candidate);
-            } else if (message === 'bye' && isStarted) { //收到的是"bye"
-                handleRemoteHangup(); //处理远程挂断
-              }
+						} else if (message === 'bye' && isStarted) { //收到的是"bye"
+								handleRemoteHangup(); //处理远程挂断
+							}
 });
 
 /*
@@ -134,14 +142,8 @@ startBtn.onclick = function(event){
   }
 
   //var localVideo = document.querySelector('#localVideo'); 
-  var localVideo = document.getElementById('localVideo');
   //var remoteVideo = document.querySelector('#remoteVideo');
- // var remoteVideo = document.getElementById('remoteVideo');
-  var videos = document.getElementById('videos');
-  var constraints = {video: true, audio: true}; //定义约束video:true,audio:true
-  getUserMedia(constraints, handleUserMedia, handleUserMediaError); 
-  //HTML5函数获取视频，参数 1约束，参数2获取成功的回调函数，参数3获取失败的回调函数
-  console.log('Getting user media with constraints', constraints);
+
   if (location.hostname != "127.0.0.1") {
     requestTurn('https://computeengineondemand.appspot.com/turn?username=41784574&key=4080218913');
   }
@@ -175,6 +177,7 @@ function handleUserMedia(stream) { //处理用户本地视频流，获取localst
   localVideo.src = window.URL.createObjectURL(stream); //流变量->localVideo标签
   localStream = stream; //流变量->localStream
   sendMessage('got user media'); //本地发送消息'got user media'，已经获取本地视频，等待连接
+  isLocalAdded = true;
  // if (isInitiator) {
     // maybeStart();
   // }
@@ -183,42 +186,27 @@ function handleUserMedia(stream) { //处理用户本地视频流，获取localst
 function handleUserMediaError(error){ //处理用户媒体的错误
   console.log('getUserMedia error: ', error);
 }
-
-/*******************************************************************************/
-function maybeStart() {
-  if (!isStarted && typeof localStream != 'undefined' && isChannelReady) {
-    createPeerConnection(); //建立Peer连接，pc=RTCPeerConnection
-    pc.addStream(localStream); //添加本地视频流
-    isStarted = true;  //添加完本地视频流后，正式开始
-    console.log('isInitiator', isInitiator);
-    if (isInitiator) {
-      doCall(); //如果本client是房间创始者，则发起呼叫call
-    }
-  }
-}
  
 function AddLocalStream(id){
   if(!isStarted && typeof localStream != 'undefined' && isChannelReady){
     createPeerConnection(id);
     peerConnections[id].addStream(localStream);//pc.addStream(localStream);
     isStarted = true;
-    console.log('本client'+('isInitiator'?'是':'不是')+'房间创建者');
-  }
+    console.log('This client isInitiator?:'+isInitiator);
+  }                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         
 }
 
 window.onbeforeunload = function(e){
-  sendMessage('bye'); 
+	sendMessage('bye'); 
 };
-
-///////////////////createPeerConnection//////////////////////
 
 function createPeerConnection(id) { //peerConnections[id]=new RTCPeerConnection
   try {
     var pc = new RTCPeerConnection(null); //调用RTCPeerConnection建立新对象pc
-    peerConnections[id] = pc;
     pc.onicecandidate = handleIceCandidate; //当收到icecandidate事件，响应onicecandiate
     pc.onaddstream = handleRemoteStreamAdded;//当收到addstream事件，响应
     pc.onremovestream = handleRemoteStreamRemoved;//当收到removestream事件，响应
+    peerConnections[id] = pc;
     console.log("peerConnections["+id+"]="+peerConnections);
     console.log('Created RTCPeerConnnection');
     
@@ -245,9 +233,8 @@ function handleIceCandidate(event) {
   }
 }
 
-//收到addstream
+//收到aremote stream，
 function handleRemoteStreamAdded(event) {  //添加远程流到pc连接，类似于函数handleUserMedia(stream)
-  console.log('Remote stream added.');
   var newVideo = document.createElement("video"); //video_id = 'other-'+socketid
   newVideo.setAttribute("class","other");
   newVideo.setAttribute("autoplay","autoplay");
@@ -255,16 +242,15 @@ function handleRemoteStreamAdded(event) {  //添加远程流到pc连接，类似
   videos.appendChild(newVideo);
   remoteStream[index] = event.stream;  //远程视频流
   index++;
-  //console.log(index);
+  console.log('Remote stream added, index='+index);
 }
 
-//收到
 function handleCreateOfferError(event){
   console.log('createOffer() error: ', e);
 }
 
 function doCall(id) { //peerConnections[new_id].doCall()
-  console.log('Sending offer to peer');
+  console.log('Sending offer to peer+ '+id);
   //pc.createOffer(setLocalAndSendMessage, handleCreateOfferError);
   var setLocalAndSendMessage = function(id){
     return function (sessionDescription) { //doCall(), doAnswer()调用
@@ -291,7 +277,7 @@ function doAnswer(id) {//响应收到"offer" 发起应答,peerConnections[receiv
     }
   };
   //pc.createAnswer(setLocalAndSendMessage, null, sdpConstraints);
-  peerConnections[id].createAnswer(setLocalAndSendMessage, null, sdpConstraints);
+  peerConnections[id].createAnswer(setLocalAndSendMessage(id), null, sdpConstraints);
 }
 
 
@@ -312,7 +298,7 @@ function requestTurn(turn_url) { //请求TURN服务器
     xhr.onreadystatechange = function(){
       if (xhr.readyState === 4 && xhr.status === 200) { //readyState=4 请求完成 status为响应码200表示成功响应
         var turnServer = JSON.parse(xhr.responseText);
-        console.log('Got TURN server: ', turnServer);
+      	console.log('Got TURN server: ', turnServer);
         pc_config.iceServers.push({
           'url': 'turn:' + turnServer.username + '@' + turnServer.turn,
           'credential': turnServer.password
