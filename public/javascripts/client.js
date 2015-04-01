@@ -3,10 +3,9 @@
 var localVideo = document.getElementById('localVideo');
 var videos = document.getElementById('videos');
 
-var isChannelReady; //建立socket时置1
-var isLocalAdded = false; //获取本地视频置1
+var isChannelReady = {}; //建立socket时isChannel[id]=ture
 var isInitiator = false; //是房间创建者置1
-var isStarted = false; //发起会话呼叫时置1
+var isStarted = {};  //发起会话呼叫时isStarted[id]=true 
 var localStream;  //pc.addStream(localStream)
 var remoteStream = [];
 var index = 0;
@@ -43,6 +42,8 @@ socket.on('created', function (room,id){ //本client是创建者，收到'create
   var msg = "本人 "+ localId +" 创建了房间 "+room;
   showMsg(msg);
   isInitiator = true;
+  isChannelReady[localId] = true;
+  console.log(isChannelReady);
   getUserMedia(constraints, handleUserMedia, handleUserMediaError); 
   console.log('Getting user media with constraints', constraints);
 });
@@ -51,16 +52,17 @@ socket.on('full', function (room){
   console.log('Room ' + room + ' is full');
 });
 
-socket.on('join', function (room){ //新的client加入时，room中的所有client收到'join'
-  console.log('Another peer made a request to join room ' + room);
- // console.log('This peer is the initiator of room ' + room + '!');
-  isChannelReady = true;
+socket.on('join', function (room,id){ //新的client加入时，room中的所有client收到'join'
+  console.log('id为'+ id +' 请求加入房间 ' + room);
+  //isChannelReady[id] = true; 
+  console.log(isChannelReady);
 });
 
 socket.on('joined', function (room,id){ //本client成功加入，收到'joined'
   console.log('Successfully!: This peer has joined room ' + room);
   localId = id;
-  isChannelReady = true;
+  isChannelReady[localId] = true;
+  console.log(isChannelReady);
   getUserMedia(constraints, handleUserMedia, handleUserMediaError); 
   console.log('Getting user media with constraints', constraints);
 });
@@ -93,6 +95,7 @@ socket.on('message', function (id, message){
   console.log('$~:客户端收到 id: '+id+' 的message:'+ message);
   if (message === 'got user media' && id != localId) { //收到非本客户端的获取local stream成功
     //maybeStart();
+      isStarted[id] = false;
       console.log("$~:向新加入的id-"+id+"-发起offer，建立pc[id]！");
      //加入房间并准备好localstream后，以新加入的id作为连接pc
       AddLocalStream(id); //createPeerConnections(id) 
@@ -103,6 +106,7 @@ socket.on('message', function (id, message){
 			  //maybeStart(); 
 			// }  
         console.log("$~:id-"+id+"-向我发起offer，建立pc[id]应答！");
+        isStarted[id]=false;
         AddLocalStream(id);
         peerConnections[id].setRemoteDescription(new RTCSessionDescription(message));//新建"远程会话描述"
   			doAnswer(id);  //发送应答
@@ -119,7 +123,7 @@ socket.on('message', function (id, message){
 							}); //新建IceCandidate对象candidate
 							//pc.addIceCandidate(candidate); //pc添加Ice的candidate,参数是RTCIceCandidate对象
               peerConnections[id].addIceCandidate(candidate);
-						} else if (message === 'bye' && isStarted) { //收到的是"bye"
+						} else if (message === 'bye' && isStarted[id]) { //收到的是"bye"
 								handleRemoteHangup(); //处理远程挂断
 							}
 });
@@ -177,7 +181,6 @@ function handleUserMedia(stream) { //处理用户本地视频流，获取localst
   localVideo.src = window.URL.createObjectURL(stream); //流变量->localVideo标签
   localStream = stream; //流变量->localStream
   sendMessage('got user media'); //本地发送消息'got user media'，已经获取本地视频，等待连接
-  isLocalAdded = true;
  // if (isInitiator) {
     // maybeStart();
   // }
@@ -188,10 +191,12 @@ function handleUserMediaError(error){ //处理用户媒体的错误
 }
  
 function AddLocalStream(id){
-  if(!isStarted && typeof localStream != 'undefined' && isChannelReady){
+  console.log('isStarted[id]='+isStarted[id]);
+  console.log('isChannelReady[id]='+isChannelReady[localId]);
+  if(!isStarted[id] && typeof localStream != 'undefined' && isChannelReady[localId]){
     createPeerConnection(id);
     peerConnections[id].addStream(localStream);//pc.addStream(localStream);
-    isStarted = true;
+    isStarted[id] = true;
     console.log('This client isInitiator?:'+isInitiator);
   }                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         
 }
@@ -208,7 +213,7 @@ function createPeerConnection(id) { //peerConnections[id]=new RTCPeerConnection
     pc.onremovestream = handleRemoteStreamRemoved;//当收到removestream事件，响应
     peerConnections[id] = pc;
     console.log("peerConnections["+id+"]="+peerConnections);
-    console.log('Created RTCPeerConnnection');
+    console.log('成功建立RTCPeerConnnection');
     
   } catch (e) {
     console.log('Failed to create PeerConnection, exception: ' + e.message);
