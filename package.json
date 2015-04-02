@@ -1,6 +1,13 @@
 {
-  "name": "application-name",
+  "name": "webrtc_demo",
+  "description": "video conferencing Web-app using node.js and socket.io",
   "version": "0.0.1",
+  "maintainers": [
+  {
+	"name": "Shangru Zhong",
+	"email": "draco.mystack@gmail.com",
+	}
+  ],
   "private": true,
   "scripts": {
     "start": "node app.js"
@@ -8,6 +15,11 @@
   "dependencies": {
     "express": "3.2.2",
     "ejs": "*",
-    "socket.io": "0.8.7"
-  }
+    "socket.io": "0.8.7",
+	"node-static": "0.7.6"
+  },
+  "engines":{
+	"node": "0.10.x",
+	"npm": "1.4.x" 
+	}
 }

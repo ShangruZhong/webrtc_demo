@@ -49,17 +49,17 @@ io.sockets.on('connection', function (socket){
 		var numClients = io.sockets.clients(room).length; 
 
 		log('Room ' + room + ' has ' + numClients + ' client(s)'); //">>> Message from server: xxx"
-		log('Now equest to create or join room:', room);
+		log('Now request to create or join room:', room);
 
 		if (numClients == 0){
 			socket.join(room);
-			socket.emit('created', room, socket.id); //向client发送建立信号"created"
+			socket.emit('created', room, socket.id); //向client发送建立信号"created"及其id
 			usersId.push(socket.id); //记录连接好的socket id
 			io.sockets.emit('system', socket.id, usersId,'login'); //向所有的socket发送
 		} else if (numClients <= 5) {
-			io.sockets.in(room).emit('join', room);
+			io.sockets.in(room).emit('join', room, socket.id);
 			socket.join(room);
-			socket.emit('joined', room, socket.id); //向client发送"joined"信号
+			socket.emit('joined', room, socket.id); //向client发送"joined"信号及其id
 			usersId.push(socket.id); //记录连接好的socket id
 			io.sockets.emit('system', socket.id, usersId,'login'); //向所有的socket发送
 		} else { // max 5 clients
