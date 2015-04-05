@@ -2,12 +2,6 @@
   "name": "webrtc_demo",
   "description": "video conferencing Web-app using node.js and socket.io",
   "version": "0.0.1",
-  "maintainers": [
-  {
-	"name": "Shangru Zhong",
-	"email": "draco.mystack@gmail.com",
-	}
-  ],
   "private": true,
   "scripts": {
     "start": "node app.js"

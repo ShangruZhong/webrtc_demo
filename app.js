@@ -11,13 +11,14 @@ var express = require('express')
   , http = require('http')
   , path = require('path')
   , ejs = require('ejs') //new adding
-  , node_static = require('node-static');
+  , node_static = require('node-static')
+  , port = process.env.PORT||3000;
 
 var file = new(node_static.Server)();
 var app = express();
 var server = http.createServer(app, function(req,res){
 	file.serve(req,res);
-	}).listen(3000,function(){
+	}).listen(port,function(){
 		console.log('Express server listening port: 3000');
 		});
 
