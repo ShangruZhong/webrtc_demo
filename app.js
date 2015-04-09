@@ -11,14 +11,13 @@ var express = require('express')
   , http = require('http')
   , path = require('path')
   , ejs = require('ejs') //new adding
-  , node_static = require('node-static')
-  , port = process.env.PORT||3000;
+  , node_static = require('node-static');
 
 var file = new(node_static.Server)();
 var app = express();
 var server = http.createServer(app, function(req,res){
 	file.serve(req,res);
-	}).listen(port,function(){
+	}).listen(3000,function(){
 		console.log('Express server listening port: 3000');
 		});
 
@@ -41,8 +40,8 @@ io.sockets.on('connection', function (socket){
 		socket.broadcast.emit('message', id, message);
 	});
 
-	socket.on('sendText',function (msg){
-		socket.broadcast.emit('textMsg',msg);
+	socket.on('sendText',function (id, msg){
+		socket.broadcast.emit('textMsg', id, msg);
 	});
 
 	socket.on('create or join', function (room) {

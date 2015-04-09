@@ -1,8 +1,48 @@
+/*html,body {
+	margin: 10;
+  	background-color: #CCC;
+	font: 20px "Lucida Grande", Helvetica, Arial, sans-serif;
+}*/
+
 body {
-  padding: 50px;
-  font: 14px "Lucida Grande", Helvetica, Arial, sans-serif;
+     /* padding-bottom: 40px;*/
+      color: #5a5a5a;
+}
+#title{
+
+}
+#historyMsg {
+	height: 400px;
+	background-color: #d4d8d9;
+	overflow: auto;
+	padding :2px;
 }
 
-a {
+#msgInput{
+
+}
+
+#localVideo{
+	width: auto;
+	height: 400px;
+	background-color: #d4d9d7;
+	padding: 2px;
+}
+/*
+#container{
+	background-color: bisque;
+}
+
+.msg{
+	height:100px;
+	background-color:#345678;
+	padding:2px;
+}
+*/
+p{
   color: #00B7FF;
+}
+.carousel img {
+	width: auto;
+	height: 500px;
 }

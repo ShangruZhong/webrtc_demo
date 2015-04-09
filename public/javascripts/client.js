@@ -39,8 +39,8 @@ var socket = io.connect();
 socket.on('created', function (room,id){ //本client是创建者，收到'created'
   console.log('Created room ' + room);
   localId = id;
-  var msg = "本人 "+ localId +" 创建了房间 "+room;
-  showMsg(msg);
+  var msg = localId +" 创建了房间 "+room;
+  showMsg('本人'+msg);
   isInitiator = true;
   isChannelReady[localId] = true;
   console.log(isChannelReady);
@@ -71,14 +71,14 @@ socket.on('log', function (array){
   console.log.apply(console, array);
 });
 
-socket.on('textMsg',function (msg){
-  showMsg(msg);
+socket.on('textMsg',function (id, msg){
+  showMsg(id,msg);
 });
 
 socket.on('system',function (id, usersId, status){
-  var msg = id+" 已经 "+(status == 'login'?' 加入房间':'离开房间');
+  var msg = " 已经 "+(status == 'login'?' 加入房间':'离开房间');
   var count = usersId.length;
-  showMsg(msg);
+  showMsg(id,msg);
   document.getElementById('status').textContent = "当前房间有"+ count + "人在线";
   socketId = usersId;
   console.log("system: 连接上server的socketId有  "+socketId);
@@ -157,18 +157,21 @@ var sendBtn = document.getElementById('sendBtn');
 sendBtn.onclick = function(event){
   var msgsInput = document.getElementById('msgInput');
   var text = msgsInput.value;
-  socket.emit('sendText', text);
-  var msgs = "本人: "+text;
-  showMsg(msgs);
+  socket.emit('sendText', localId, text);
+  //var msgs = "本人: "+text;
+  showMsg('本人',text);
   msgsInput.value ="";
 }
 
-function showMsg(msg){
+function showMsg(id,msg){
     var msgContainer = document.getElementById('historyMsg');//<div>
     var msgToDisplay = document.createElement('p');
     var date = new Date().toTimeString().substr(0, 8);
-    msgToDisplay.style.color = '#123456';
-    msgToDisplay.innerHTML = '<span class="timespan">(' + date + '): </span>' + msg;
+    if(id=='本人'){
+      msgToDisplay.style.color = '##f1558f';
+    }
+    else msgToDisplay.style.color = '#000000';
+    msgToDisplay.innerHTML = '<span class="timespan">(' + date + '): </span>'+id+':' + msg;
     msgContainer.appendChild(msgToDisplay);
     msgContainer.scrollTop = msgContainer.scrollHeight; 
   }
