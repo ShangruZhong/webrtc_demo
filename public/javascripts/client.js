@@ -17,7 +17,9 @@ var localId; //本client的socketId
 
 var turnReady;
 
-var pc_config = {'iceServers': [{'url': 'stun:stun.l.google.com:19302'}]};
+var pc_config = {'iceServers': [{'url': 'stun:stun.l.google.com:19302'}
+                                {'url': 'turn:user@turnserver.com','credemtial':'pass'}
+                               ]};
 var pc_constraints = {'optional': [{'DtlsSrtpKeyAgreement': true}]};
 var constraints = {video: true, audio: true}; //定义约束video:true,audio:true
 // Set up audio and video regardless of what devices are present.
@@ -210,7 +212,7 @@ window.onbeforeunload = function(e){
 
 function createPeerConnection(id) { //peerConnections[id]=new RTCPeerConnection
   try {
-    var pc = new RTCPeerConnection(null); //调用RTCPeerConnection建立新对象pc
+    var pc = new RTCPeerConnection(pc_config); //调用RTCPeerConnection建立新对象pc
     pc.onicecandidate = handleIceCandidate; //当收到icecandidate事件，响应onicecandiate
     pc.onaddstream = handleRemoteStreamAdded;//当收到addstream事件，响应
     pc.onremovestream = handleRemoteStreamRemoved;//当收到removestream事件，响应

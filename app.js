@@ -96,23 +96,3 @@ if ('development' == app.get('env')) {
 
 app.get('/', routes.index);
 app.get('/users', user.list);
-
-/*var server = http.createServer(app).listen(app.get('port'), function(req,res){
-  file.serve(req, res);
-  console.log('Express server listening on port ' + app.get('port'));
-});*/
-
-
-
-
-//var static=require('node-static');  
-
-//var server=require('http').createServer();  
-//var app=server.listen(port);
-
-//adapter.js:Google维护的函数库，用来抽象掉浏览器之间的差异
-//var io=require('socket.io')(server).listen(app);
-//io.sockets.on('connection',function(socket){
-//   socket.on('XX',function(xxx){}); //是socket，不是sockets
-//	 socket.on('YY',function(){})
-// });
