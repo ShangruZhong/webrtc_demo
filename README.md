@@ -9,7 +9,7 @@ This project implements Google Open-Source API for video chatting. This app runs
 	- RTCDataChannel
 - Implementing **Text Chatting** (P2P or Group Chatting)
 - Implementing **Video Chatting** (P2P)
-- Now making efforts for **Multiple Video Conference** and **Files Sharing**.
+- Implementing **Multiple Video Conference**
 
 ##Requirements
 -  [Node.js](https://nodejs.org/) 
