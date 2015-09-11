@@ -1,25 +1,24 @@
  'use strict';
 
 var localVideo = document.getElementById('localVideo');
-var videos = document.getElementById('videos');
+var remoteVideo = document.getElementById('remoteVideo');
 
 var isChannelReady = {}; //建立socket时isChannel[id]=ture
 var isInitiator = false; //是房间创建者置1
 var isStarted = {};  //发起会话呼叫时isStarted[id]=true 
 var localStream;  //pc.addStream(localStream)
-var remoteStream = [];
+var remoteStream;//var remoteStream = [];
 var index = 0;
 
 var pc; //定义p(eer)c(onnection)为RTCPeerConnection对象
 var peerConnections = {}; //{"id1":"pc1","id2":"pc2","id3":"pc3"}
 var socketId = []; //所有pc的socketIds
 var localId; //本client的socketId
+var remoteId;
 
 var turnReady;
 
-var pc_config = {'iceServers': [{'url': 'stun:stun.l.google.com:19302'}
-                                {'url': 'turn:user@turnserver.com','credemtial':'pass'}
-                               ]};
+var pc_config = {'iceServers': [{'url': 'stun:stun.l.google.com:19302'}]};
 var pc_constraints = {'optional': [{'DtlsSrtpKeyAgreement': true}]};
 var constraints = {video: true, audio: true}; //定义约束video:true,audio:true
 // Set up audio and video regardless of what devices are present.
@@ -28,6 +27,13 @@ var sdpConstraints = {'mandatory': {
                       'OfferToReceiveAudio':true,
                       'OfferToReceiveVideo':true }
                     };
+
+
+/*******************************************************************************/
+/*****************                                             *****************/
+/*****************           socket.io client listener         *****************/
+/*****************                                             *****************/
+/*******************************************************************************/
 
 //定义socket连接服务器socket=io.connect('http://localhost'或者null); 
 //io是server端定义的调用socketio模块建立的对象：
@@ -38,7 +44,7 @@ var sdpConstraints = {'mandatory': {
 
 var socket = io.connect();
 
-socket.on('created', function (room,id){ //本client是创建者，收到'created'
+socket.on('created', function (room,id){ //收到'created'，表明本client是第一个加入房间的
   console.log('Created room ' + room);
   localId = id;
   var msg = localId +" 创建了房间 "+room;
@@ -60,7 +66,7 @@ socket.on('join', function (room,id){ //新的client加入时，room中的所有
   console.log(isChannelReady);
 });
 
-socket.on('joined', function (room,id){ //本client成功加入，收到'joined'
+socket.on('joined', function (room,id){ //收到'joined'，本client成功加入
   console.log('Successfully!: This peer has joined room ' + room);
   localId = id;
   isChannelReady[localId] = true;
@@ -95,12 +101,12 @@ function sendMessage(message){
 //接受处理server端发送的message事件
 socket.on('message', function (id, message){
   console.log('$~:客户端收到 id: '+id+' 的message:'+ message);
-  if (message === 'got user media' && id != localId) { //收到非本客户端的获取local stream成功
-    //maybeStart();
+  if (message === 'got user media' && id != localId && isInitiator) { //收到非本客户端的获取local stream成功
+    //maybeStart(); //只有房间创建者才能发起offer
       isStarted[id] = false;
       console.log("$~:向新加入的id-"+id+"-发起offer，建立pc[id]！");
      //加入房间并准备好localstream后，以新加入的id作为连接pc
-      AddLocalStream(id); //createPeerConnections(id) 
+      AddLocalStream(id); //createPeerConnections(id)、isStarted[id]=true
       doCall(id); //向新加入的id发起offer
       } 
       else if (message.type === 'offer' && id != localId) { //收到的是offer连接
@@ -108,43 +114,43 @@ socket.on('message', function (id, message){
 			  //maybeStart(); 
 			// }  
         console.log("$~:id-"+id+"-向我发起offer，建立pc[id]应答！");
+        remoteId = id;
         isStarted[id]=false;
-        AddLocalStream(id);
+        AddLocalStream(id); //createPeerConnections(id)、isStarted[id]=true
         peerConnections[id].setRemoteDescription(new RTCSessionDescription(message));//新建"远程会话描述"
   			doAnswer(id);  //发送应答
 
-		  } else if (message.type === 'answer'  && id !=localId ){//&& isStarted) { //收到的是应答answer
+		  } else if (message.type === 'answer'  &&id !=localId &&id != remoteId){//&& isStarted) { //收到的是应答answer
 					//pc.setRemoteDescription(new RTCSessionDescription(message));//收到对方的answer后新建"远程会话描述"
-				  
-          console.log("$~:收到id-"+id+"-的answer！");
+				  console.log("$~:收到id-"+id+"-的answer！");
           peerConnections[id].setRemoteDescription(new RTCSessionDescription(message));
-        } else if (message.type === 'candidate'&&id != localId && isStarted ){ //收到的是"candidate"类型
+        } else if (message.type === 'candidate'&&id != localId && isStarted[id] ){ //收到的是"candidate"类型
 							var candidate = new RTCIceCandidate({
 							sdpMLineIndex: message.label,
 							candidate: message.candidate
 							}); //新建IceCandidate对象candidate
 							//pc.addIceCandidate(candidate); //pc添加Ice的candidate,参数是RTCIceCandidate对象
               peerConnections[id].addIceCandidate(candidate);
-						} else if (message === 'bye' && isStarted[id]) { //收到的是"bye"
-								handleRemoteHangup(); //处理远程挂断
+						} else if (message === 'bye' && isStarted[id]) { //收到的是"bye"								handleRemoteHangup(); //处理远程挂断
 							}
 });
 
-/*
- * Main 入口
- */
+/*********************************************************************************/
+/******************                                              *****************/
+/******************               Main-Function                  *****************/
+/******************                                              *****************/
+/*********************************************************************************/
 var startBtn = document.getElementById('startBtn');
 startBtn.onclick = function(event){
   var room = location.pathname.substring(1);
   if (room === '') {
      room = prompt('Enter room name:');
-    //  room = 'foo';
     } else {  
   }
-
   if (room !== '') {
     console.log('Create or join room', room);
     socket.emit('create or join', room); //发送room号给server，创建/加入成功后获取本地localId
+    //第一个加入room的，server返回created信号，其余的server返回joined信号
   }
 
   //var localVideo = document.querySelector('#localVideo'); 
@@ -165,6 +171,13 @@ sendBtn.onclick = function(event){
   msgsInput.value ="";
 }
 
+
+/*********************************************************************************/
+/******************                                              *****************/
+/******************        WebRTC APIs Implement                 *****************/    
+/******************        sub-function definition               *****************/
+/******************                                              *****************/
+/*********************************************************************************/
 function showMsg(id,msg){
     var msgContainer = document.getElementById('historyMsg');//<div>
     var msgToDisplay = document.createElement('p');
@@ -243,16 +256,18 @@ function handleIceCandidate(event) {
   }
 }
 
-//收到aremote stream，
+//收到remote stream，
 function handleRemoteStreamAdded(event) {  //添加远程流到pc连接，类似于函数handleUserMedia(stream)
-  var newVideo = document.createElement("video"); //video_id = 'other-'+socketid
-  newVideo.setAttribute("class","other");
-  newVideo.setAttribute("autoplay","autoplay");
-  newVideo.src = window.URL.createObjectURL(event.stream);  //将流绑定到newVideo标签上
-  videos.appendChild(newVideo);
-  remoteStream[index] = event.stream;  //远程视频流
-  index++;
-  console.log('Remote stream added, index='+index);
+  //var newVideo = document.createElement("video"); //video_id = 'other-'+socketid
+  //newVideo.setAttribute("class","other");
+  // newVideo.setAttribute("autoplay","autoplay");
+  // newVideo.src = window.URL.createObjectURL(event.stream);  //将流绑定到newVideo标签上
+  // videos.appendChild(newVideo);
+  //remoteStream[index] = event.stream;  //远程视频流
+  //index++;
+  //console.log('Remote stream added, index='+index);
+  remoteVideo.src = window.URL.createObjectURL(event.stream);
+  remoteStream = event.stream;
 }
 
 function handleCreateOfferError(event){
@@ -289,8 +304,6 @@ function doAnswer(id) {//响应收到"offer" 发起应答,peerConnections[receiv
   //pc.createAnswer(setLocalAndSendMessage, null, sdpConstraints);
   peerConnections[id].createAnswer(setLocalAndSendMessage(id), null, sdpConstraints);
 }
-
-
 
 function requestTurn(turn_url) { //请求TURN服务器
   var turnExists = false;
@@ -351,8 +364,11 @@ function stop() {  //开始标记isStarted=0
   pc = null;
 }
 
-
-/////////////////preferOpus//////////////
+/*********************************************************************************/
+/******************                                              *****************/
+/******************            audio codec Opus                  *****************/
+/******************                                              *****************/
+/*********************************************************************************/
 
 // Set Opus as the default audio codec if it's present.
 function preferOpus(sdp) {
